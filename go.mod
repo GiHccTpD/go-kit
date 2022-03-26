@@ -1,4 +1,4 @@
-module go-kit
+module github.com/GiHccTpD/go-kit
 
 go 1.16
 
