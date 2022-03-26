@@ -1,10 +1,13 @@
 package db
 
 import (
-	"gorm.io/gorm/logger"
 	"io"
 	"time"
+
+	"gorm.io/gorm/logger"
 )
+
+const packageName = "go-kit.db.gorm"
 
 // config options
 type config struct {
