@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-func LoadConfigFile(cfgPath, cfgFile string) error {
+func loadConfigFile(cfgPath, cfgFile string) error {
 	if cfgFile != "" {
 		viper.AddConfigPath(cfgPath)
 	}
@@ -25,13 +25,13 @@ func LoadConfigFile(cfgPath, cfgFile string) error {
 	return err
 }
 
-func MustLoadConfigFile(cfgPath, cfgFile string) {
-	if err := LoadConfigFile(cfgPath, cfgFile); err != nil {
+func LoadConfigFile(cfgPath, cfgFile string) {
+	if err := loadConfigFile(cfgPath, cfgFile); err != nil {
 		panic(fmt.Errorf("Fatal error config file: %w \n", err))
 	}
 }
 
-func LoadConfigByte(data []byte, filetype string) error {
+func loadConfigByte(data []byte, filetype string) error {
 	var err error
 
 	switch filetype {
@@ -53,8 +53,8 @@ func LoadConfigByte(data []byte, filetype string) error {
 	return err
 }
 
-func MustLoadConfigByte(data []byte, filetype string) {
-	if err := LoadConfigByte(data, filetype); err != nil {
+func LoadConfigByte(data []byte, filetype string) {
+	if err := loadConfigByte(data, filetype); err != nil {
 		panic(fmt.Errorf("Fatal error config file: %w \n", err))
 	}
 }
