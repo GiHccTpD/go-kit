@@ -10,7 +10,7 @@ import (
 )
 
 func loadConfigFile(cfgPath, cfgFile string) error {
-	if cfgFile != "" {
+	if cfgPath != "" {
 		viper.AddConfigPath(cfgPath)
 	}
 	viper.SetConfigFile(cfgFile)
