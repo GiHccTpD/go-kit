@@ -23,8 +23,8 @@ func GetGormMysql(dbName string) (*gorm.DB, error) {
 	}
 }
 
-// MustInitMysql 初始化
-func (c *Component) MustInitMysql() *Component {
+// InitMysql 初始化
+func (c *Component) InitMysql() *Component {
 	// 配置必须信息
 	if len(c.config.Dsn) == 0 || len(c.config.DbName) == 0 {
 		panic(fmt.Sprintf("❌数据库配置不正确 dbName=%s dsn=%s", c.config.DbName, c.config.Dsn))
