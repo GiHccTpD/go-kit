@@ -3,15 +3,16 @@ package db
 import (
 	"errors"
 	"fmt"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"log"
 	"os"
 	"time"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-const PackageNameMysql = "component.igorm.mysql"
+const PackageNameMysql = "go-kit.mysql"
 
 // 获取 gorm.DB 对象
 func GetGormMysql(dbName string) (*gorm.DB, error) {

@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-func LoadConfigFile(cfgFile string) error {
+func LoadConfigFile(cfgPath, cfgFile string) error {
+	if cfgFile != "" {
+		viper.AddConfigPath(cfgPath)
+	}
 	viper.SetConfigFile(cfgFile)
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file
@@ -22,8 +25,8 @@ func LoadConfigFile(cfgFile string) error {
 	return err
 }
 
-func MustLoadConfigFile(cfgFile string) {
-	if err := LoadConfigFile(cfgFile); err != nil {
+func MustLoadConfigFile(cfgPath, cfgFile string) {
+	if err := LoadConfigFile(cfgPath, cfgFile); err != nil {
 		panic(fmt.Errorf("Fatal error config file: %w \n", err))
 	}
 }
