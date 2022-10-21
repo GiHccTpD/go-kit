@@ -125,10 +125,10 @@ func NewWriterLogger(w io.Writer, flag int, depth int) *Logger {
 		logger.depth = 2
 	}
 
-	logger.err = log.New(w, "[E] ", flag)
-	logger.warn = log.New(w, "[W] ", flag)
-	logger.info = log.New(w, "[I] ", flag)
-	logger.debug = log.New(w, "[D] ", flag)
+	logger.err = log.New(w, "[Error] ", flag)
+	logger.warn = log.New(w, "[Warning] ", flag)
+	logger.info = log.New(w, "[Info] ", flag)
+	logger.debug = log.New(w, "[Debug] ", flag)
 
 	logger.SetLevel(LevelInformational)
 
