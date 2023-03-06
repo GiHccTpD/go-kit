@@ -30,6 +30,7 @@ func AddSignalFunc(signalFunc func()) {
 }
 
 func WaitSignal() {
+	logger.Log.SetLevel(logger.LevelDebug)
 	logger.Log.Debug("wait signal")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP, syscall.SIGKILL)
