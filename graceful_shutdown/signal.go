@@ -5,7 +5,6 @@ package graceful_shutdown
 
 import (
 	"fmt"
-	"github.com/GiHccTpD/go-kit/logger"
 	"log"
 	"os"
 	"os/signal"
@@ -40,7 +39,7 @@ func WaitSignal() {
 			log.Println("接受到退出信号: ", a.String())
 			//logger.Log.Debug(len(signalFuncList))
 			for _, s := range signalFuncList {
-				logger.Log.Debug("run")
+				log.Println("run")
 				s()
 			}
 			fmt.Printf("%v\n", fmt.Sprintf("\x1b[32m%s\x1b[0m", byebye))
