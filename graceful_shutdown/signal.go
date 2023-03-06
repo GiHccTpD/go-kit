@@ -6,6 +6,7 @@ package graceful_shutdown
 import (
 	"fmt"
 	"github.com/GiHccTpD/go-kit/logger"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,14 +31,13 @@ func AddSignalFunc(signalFunc func()) {
 }
 
 func WaitSignal() {
-	logger.Log.SetLevel(logger.LevelDebug)
-	logger.Log.Debug("wait signal")
+	log.Println("wait signal")
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP, syscall.SIGKILL)
 	for {
 		select {
 		case a := <-c:
-			logger.Log.Debug("接受到退出信号: ", a.String())
+			log.Println("接受到退出信号: ", a.String())
 			//logger.Log.Debug(len(signalFuncList))
 			for _, s := range signalFuncList {
 				logger.Log.Debug("run")
