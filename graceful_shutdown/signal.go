@@ -4,11 +4,20 @@
 package graceful_shutdown
 
 import (
+	"fmt"
 	"github.com/GiHccTpD/go-kit/logger"
 	"os"
 	"os/signal"
 	"syscall"
 )
+
+const byebye = `  _______   __  __   ______        _______   __  __   ______      
+/_______/\ /_/\/_/\ /_____/\     /_______/\ /_/\/_/\ /_____/\     
+\::: _  \ \\ \ \ \ \\::::_\/_    \::: _  \ \\ \ \ \ \\::::_\/_    
+ \::(_)  \/_\:\_\ \ \\:\/___/\    \::(_)  \/_\:\_\ \ \\:\/___/\   
+  \::  _  \ \\::::_\/ \::___\/_    \::  _  \ \\::::_\/ \::___\/_  
+   \::(_)  \ \ \::\ \  \:\____/\    \::(_)  \ \ \::\ \  \:\____/\ 
+    \_______\/  \__\/   \_____\/     \_______\/  \__\/   \_____\/`
 
 var signalFuncList []func()
 
@@ -33,6 +42,7 @@ func WaitSignal() {
 				logger.Log.Debug("run")
 				s()
 			}
+			fmt.Printf("%v\n", fmt.Sprintf("\x1b[32m%s\x1b[0m", byebye))
 			return
 		}
 	}
