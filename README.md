@@ -44,12 +44,14 @@ OUTPUT_DIR="_output"
   GO_LDFLAGS+=" -X ${VERSION_PACKAGE}.GitVersion=${VERSION}"
   GO_LDFLAGS+=" -X ${VERSION_PACKAGE}.GitCommit=${GIT_COMMIT}"
   GO_LDFLAGS+=" -X ${VERSION_PACKAGE}.GitTreeState=${GIT_TREE_STATE}"
-  GO_LDFLAGS+=" -X ${VERSION_PACKAGE}.BuildDate=$(date -u +'%Y-%m-%dT%H:%M:%S')"
+  GO_LDFLAGS+=" -X ${VERSION_PACKAGE}.BuildDate=$(TZ=Asia/Shanghai date +'%Y-%m-%dT%H:%M:%S')"
 
   CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -ldflags "$GO_LDFLAGS" -o ../$OUTPUT_DIR/$server_name ../cmd/$server_name/main.go
 }
 ```
+
 2. 执行改脚本
+
 3. 执行build产物
 ```bash
 ./your_server_name --version
