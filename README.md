@@ -1,5 +1,11 @@
 # Go Kit
 
+## 使用
+
+```bash
+go get github.com/GiHccTpD/go-kit
+```
+
 ## version
 
 ### 简介
