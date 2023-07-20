@@ -32,6 +32,10 @@ func AddSignalFunc(signalFunc func()) {
 func WaitSignal() {
 	log.Println("wait signal")
 	c := make(chan os.Signal, 1)
+	
+	// kill 默认会发送 syscall.SIGTERM 信号
+	// kill -2 发送 syscall.SIGINT 信号，我们常用的 CTRL + C 就是触发系统 SIGINT 信号
+	// kill -9 发送 syscall.SIGKILL 信号，但是不能被捕获，所以不需要添加它
 	signal.Notify(c, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSTOP, syscall.SIGKILL)
 	for {
 		select {
