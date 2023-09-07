@@ -3,6 +3,7 @@ package Config
 import (
 	"bytes"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
 	"io"
 	"log"
 
@@ -22,6 +23,13 @@ func loadConfigFile(cfgPath, cfgFile string) error {
 			log.Println(fmt.Errorf("Fatal error config file: %w \n", err))
 		}
 	}
+
+	// 监听配置文件的变化并自动加载
+	viper.WatchConfig()
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		log.Println("Config file changed:", e.Name)
+	})
+
 	return err
 }
 
