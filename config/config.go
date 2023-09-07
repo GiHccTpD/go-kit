@@ -39,28 +39,6 @@ func LoadConfigFile(cfgPath, cfgFile string) {
 	}
 }
 
-func LoadConfigFileViaMultiplePaths(cfgPaths []string, cfgFile string) {
-	for _, path := range cfgPaths {
-		viper.AddConfigPath(path)
-	}
-	viper.SetConfigFile(cfgFile)
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			log.Println(fmt.Errorf("Fatal error config file: Config file not found %w \n", err))
-		} else {
-			log.Println(fmt.Errorf("Fatal error config file: %w \n", err))
-		}
-	}
-
-	// 监听配置文件的变化并自动加载
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Println("Config file changed:", e.Name)
-	})
-
-}
-
 func loadConfigByte(data []byte, filetype string) error {
 	var err error
 
