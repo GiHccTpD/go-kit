@@ -1,14 +1,10 @@
-//go:build !dm
+//go:build dm
 
 package db
 
 import (
-	"gorm.io/driver/mysql"
+	dm "github.com/Leefs/gorm-driver-dm"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-	"log"
-	"os"
-	"time"
 )
 
 func (c *Component) initMysqlDb() *gorm.DB {
@@ -37,10 +33,10 @@ func (c *Component) initMysqlDb() *gorm.DB {
 		Logger: newLogger,
 	}
 
-	for db, err = gorm.Open(mysql.Open(c.config.Dsn), &gconfig); err != nil; {
+	for db, err = gorm.Open(dm.Open(c.config.Dsn), &gconfig); err != nil; {
 		log.Println(packageName, "❌数据库连接异常", c.config.DbName, err)
 		time.Sleep(5 * time.Second)
-		db, err = gorm.Open(mysql.Open(c.config.Dsn), &gconfig)
+		db, err = gorm.Open(dm.Open(c.config.Dsn), &gconfig)
 	}
 
 	if idb, err := db.DB(); err != nil {
