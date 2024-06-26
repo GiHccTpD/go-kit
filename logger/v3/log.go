@@ -65,7 +65,6 @@ func NewLogger(opts *Options) *zapLogger {
 	var outputPath = opts.OutputPaths
 	writeSyncer := getLogWriter(outputPath)
 	encoder := getEncoder()
-
 	core := zapcore.NewCore(encoder, writeSyncer, zapLevel)
 
 	z := zap.New(core, zap.AddStacktrace(zapcore.PanicLevel), zap.AddCallerSkip(1))
@@ -74,6 +73,7 @@ func NewLogger(opts *Options) *zapLogger {
 	// 把标准库的 log.Logger 的 info 级别的输出重定向到 zap.Logger
 	zap.RedirectStdLog(z)
 
+	z.Info("log v3初始化成功🎉")
 	return logger
 }
 
@@ -82,19 +82,23 @@ func getEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 	// 自定义 MessageKey 为 message，message 语义更明确
 	encoderConfig.MessageKey = "message"
+	// 用于指定在日志条目中记录日志级别时使用的键名
+	encoderConfig.LevelKey = "level"
 	// 自定义 TimeKey 为 timestamp，timestamp 语义更明确
 	encoderConfig.TimeKey = "timestamp"
 	// 指定时间序列化函数，将时间序列化为 `2006-01-02 15:04:05.000` 格式，更易读
 	encoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 		enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
 	}
+	// 用于指定在日志条目中记录调用者信息（即日志记录所在的文件和行号）时使用的键名
+	encoderConfig.CallerKey = "file"
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 	// 指定 time.Duration 序列化函数，将 time.Duration 序列化为经过的毫秒数的浮点数
 	// 毫秒数比默认的秒数更精确
 	encoderConfig.EncodeDuration = func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
 		enc.AppendFloat64(float64(d) / float64(time.Millisecond))
 	}
-	return zapcore.NewConsoleEncoder(encoderConfig) //获取编码器,NewJSONEncoder()输出json格式，NewConsoleEncoder()输出普通文本格式
+	return zapcore.NewJSONEncoder(encoderConfig) //获取编码器,NewJSONEncoder()输出json格式，NewConsoleEncoder()输出普通文本格式
 }
 
 func getLogWriter(outputPaths []string) zapcore.WriteSyncer {
