@@ -67,7 +67,12 @@ func NewLogger(opts *Options) *zapLogger {
 	encoder := getEncoder()
 	core := zapcore.NewCore(encoder, writeSyncer, zapLevel)
 
-	z := zap.New(core, zap.AddStacktrace(zapcore.PanicLevel), zap.AddCallerSkip(1))
+	// 开启开发模式，堆栈跟踪
+	caller := zap.AddCaller()
+	// 开启文件及行号
+	development := zap.Development()
+
+	z := zap.New(core, zap.AddStacktrace(zapcore.PanicLevel), zap.AddCallerSkip(1), caller, development)
 	logger := &zapLogger{z: z}
 
 	// 把标准库的 log.Logger 的 info 级别的输出重定向到 zap.Logger
