@@ -24,7 +24,6 @@ type Logger interface {
 	Panicw(msg string, keysAndValues ...interface{})
 	Fatalw(msg string, keysAndValues ...interface{})
 	Sync()
-	GetZapLogger() *zap.Logger
 }
 
 // zapLogger 是 Logger 接口的具体实现. 它底层封装了 zap.Logger.
@@ -32,8 +31,8 @@ type zapLogger struct {
 	z *zap.Logger
 }
 
-func (l *zapLogger) GetZapLogger() *zap.Logger {
-	return l.z
+func GetZapLogger() *zap.Logger {
+	return std.z
 }
 
 // 确保 zapLogger 实现了 Logger 接口. 以下变量赋值，可以使错误在编译期被发现.
