@@ -23,6 +23,7 @@ type Logger interface {
 	Errorw(msg string, keysAndValues ...interface{})
 	Panicw(msg string, keysAndValues ...interface{})
 	Fatalw(msg string, keysAndValues ...interface{})
+	DB() *zap.Logger
 	Sync()
 }
 
@@ -232,4 +233,9 @@ func (l *zapLogger) C(ctx context.Context) *zapLogger {
 func (l *zapLogger) clone() *zapLogger {
 	lc := *l
 	return &lc
+}
+
+// DB 返回 *zap.Logger 实例.
+func (l *zapLogger) DB() *zap.Logger {
+	return l.z
 }
