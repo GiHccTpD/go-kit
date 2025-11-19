@@ -19,6 +19,8 @@ func TestInit(t *testing.T) {
 		OutputPaths:       []string{"stdout", "app.log"},
 	})
 
+	std.Debugw("debug")
+
 	std.C(ctx).Infow("update log level", "level", level)
 
 	std.C(ctx).Debugw("不输出")

@@ -192,6 +192,32 @@ func (l *zapLogger) C(ctx context.Context) *zapLogger {
 	return lc
 }
 
+// ========== Global Logging API (no context) ==========
+
+func Debugw(msg string, keysAndValues ...interface{}) {
+	std.Debugw(msg, keysAndValues...)
+}
+
+func Infow(msg string, keysAndValues ...interface{}) {
+	std.Infow(msg, keysAndValues...)
+}
+
+func Warnw(msg string, keysAndValues ...interface{}) {
+	std.Warnw(msg, keysAndValues...)
+}
+
+func Errorw(msg string, keysAndValues ...interface{}) {
+	std.Errorw(msg, keysAndValues...)
+}
+
+func Panicw(msg string, keysAndValues ...interface{}) {
+	std.Panicw(msg, keysAndValues...)
+}
+
+func Fatalw(msg string, keysAndValues ...interface{}) {
+	std.Fatalw(msg, keysAndValues...)
+}
+
 /* -------------------- Clone -------------------- */
 
 func (l *zapLogger) clone() *zapLogger {
