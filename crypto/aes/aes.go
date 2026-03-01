@@ -4,8 +4,8 @@ import (
 	iaes "crypto/aes"
 	icipher "crypto/cipher"
 	"errors"
-	"git.ccwork.com/ccwork/go/utils.git/crypto/cipher"
-	"git.ccwork.com/ccwork/go/utils.git/crypto/padding"
+	"github.com/GiHccTpD/go-kit/crypto/cipher"
+	"github.com/GiHccTpD/go-kit/crypto/padding"
 )
 
 var (
