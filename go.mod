@@ -1,6 +1,6 @@
 module github.com/GiHccTpD/go-kit
 
-go 1.25.0
+go 1.23.0
 
 require (
 	github.com/Leefs/gorm-driver-dm v1.0.3
