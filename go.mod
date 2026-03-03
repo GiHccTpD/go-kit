@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/Leefs/gorm-driver-dm v1.0.3
 	github.com/fsnotify/fsnotify v1.5.1
-	github.com/gin-gonic/gin v1.12.0
+	github.com/gin-gonic/gin v1.10.0
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/google/uuid v1.6.0
 	github.com/jinzhu/gorm v1.9.16
