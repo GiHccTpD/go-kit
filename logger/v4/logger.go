@@ -6,7 +6,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/GiHccTpD/go-kit/known"
 	"github.com/samber/lo"
@@ -84,37 +83,24 @@ func NewLogger(opts *Options) *zapLogger {
 		level.SetLevel(zap.InfoLevel)
 	}
 
-	encoder := getEncoder()
+	encoder := newEncoder(opts.Format)
 	writer := getWriteSyncer(opts.OutputPaths)
 
 	core := zapcore.NewCore(encoder, writer, level)
 
-	z := zap.New(core,
-		zap.AddCaller(),
-		zap.AddCallerSkip(1),
-		zap.AddStacktrace(zap.ErrorLevel),
-	)
+	zapOptions := make([]zap.Option, 0, 3)
+	if !opts.DisableCaller {
+		zapOptions = append(zapOptions, zap.AddCaller(), zap.AddCallerSkip(1))
+	}
+	if !opts.DisableStacktrace {
+		zapOptions = append(zapOptions, zap.AddStacktrace(zap.ErrorLevel))
+	}
+
+	z := zap.New(core, zapOptions...)
 
 	zap.RedirectStdLog(z)
 
-	z.Info("log v4 初始化成功🎉")
-
 	return &zapLogger{z: z, level: level}
-}
-
-/* -------------------- Encoder -------------------- */
-
-func getEncoder() zapcore.Encoder {
-	cfg := zap.NewProductionEncoderConfig()
-	cfg.MessageKey = "message"
-	cfg.LevelKey = "level"
-	cfg.TimeKey = "timestamp"
-	cfg.CallerKey = "file"
-	cfg.EncodeLevel = zapcore.CapitalLevelEncoder
-	cfg.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-		enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
-	}
-	return zapcore.NewJSONEncoder(cfg)
 }
 
 /* -------------------- WriteSyncer -------------------- */
