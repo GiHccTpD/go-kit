@@ -6,10 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/GiHccTpD/go-kit/logger/v3"
-	"github.com/GiHccTpD/go-kit/sugar"
-	"github.com/GiHccTpD/go-kit/trace"
-	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,6 +15,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/GiHccTpD/go-kit/logger/v3"
+	"github.com/GiHccTpD/go-kit/sugar"
+	"github.com/GiHccTpD/go-kit/trace"
+	"go.uber.org/zap"
 )
 
 var (
