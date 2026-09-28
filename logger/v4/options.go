@@ -8,6 +8,7 @@ type Options struct {
 	Level             string   // 指定日志级别，可选值：debug, info, warn, error, dpanic, panic, fatal
 	Format            string   // 指定日志显示格式，可选值：console, json
 	OutputPaths       []string // 指定日志输出位置
+	RedactKeys        []string // 追加需要隐藏值的结构化字段名（不区分大小写）；密码类默认字段始终隐藏
 }
 
 func NewOptions() *Options {

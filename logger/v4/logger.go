@@ -86,7 +86,7 @@ func NewLogger(opts *Options) *zapLogger {
 	encoder := newEncoder(opts.Format)
 	writer := getWriteSyncer(opts.OutputPaths)
 
-	core := zapcore.NewCore(encoder, writer, level)
+	core := newRedactingCore(zapcore.NewCore(encoder, writer, level), opts.RedactKeys)
 
 	zapOptions := make([]zap.Option, 0, 3)
 	if !opts.DisableCaller {

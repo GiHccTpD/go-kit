@@ -174,3 +174,4 @@ Temporary Items
 
 /.idea/
 *.log
+!/logger/v4/var/

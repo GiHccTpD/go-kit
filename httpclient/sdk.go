@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/GiHccTpD/go-kit/known"
-	log "github.com/GiHccTpD/go-kit/logger/v4"
 	"github.com/go-resty/resty/v2"
 	"github.com/google/uuid"
 )
@@ -21,8 +20,7 @@ const (
 	idempotencyHeader = "Idempotency-Key"
 )
 
-// Logger is the minimal logging interface accepted by the SDK. For zap.Logger,
-// pass its Sugar() value; logger/v4.Logger also implements this interface.
+// Logger is the minimal logging interface accepted by the SDK.
 type Logger interface {
 	Infow(msg string, keysAndValues ...interface{})
 }
@@ -38,7 +36,7 @@ type Config struct {
 	BreakerThreshold    int
 	BreakerOpenDuration time.Duration
 	Transport           http.RoundTripper // Optional; set once before the SDK is used.
-	Logger              Logger            // Optional; defaults to logger/v4's context logger.
+	Logger              Logger            // Optional; nil disables SDK request logging.
 }
 
 // Request describes one HTTP call. IdempotencyKey opts POST/PATCH into retries only when
@@ -199,13 +197,11 @@ func (s *SDK) Do(ctx context.Context, call Request) (*resty.Response, error) {
 	if resp != nil {
 		status = resp.StatusCode()
 	}
-	logger := s.config.Logger
-	if logger == nil {
-		logger = log.C(ctx)
+	if s.config.Logger != nil {
+		s.config.Logger.Infow("🌐 HTTP request done", "method", method, "path", path.Path,
+			"status", status, "attempts", req.Attempt, "durationMs", time.Since(started).Milliseconds(),
+			"requestId", requestID)
 	}
-	logger.Infow("HTTP request done", "method", method, "path", path.Path,
-		"status", status, "attempts", req.Attempt, "durationMs", time.Since(started).Milliseconds(),
-		"requestId", requestID)
 	if err != nil {
 		return resp, fmt.Errorf("execute %s %s: %w", method, path.Path, err)
 	}

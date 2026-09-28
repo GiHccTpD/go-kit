@@ -11,7 +11,152 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
+
+func TestLoggerRedactsSensitiveFieldsAcrossZapEntryPoints(t *testing.T) {
+	dir := t.TempDir()
+	chdirForLoggerTest(t, dir)
+	logger := NewLogger(&Options{
+		Level:       "debug",
+		Format:      "json",
+		OutputPaths: []string{"redaction.log"},
+	})
+	t.Cleanup(logger.Sync)
+
+	type credentials struct {
+		Password string `json:"oldPassword"`
+		Token    string `json:"access_token"`
+	}
+	logger.Infow("instance",
+		"password", "top-secret-password",
+		"token", "visible-token",
+		"payload", map[string]any{
+			"credentials": credentials{Password: "nested-password", Token: "nested-visible-token"},
+			"items":       []any{map[string]string{"db_password": "array-password"}},
+		},
+	)
+
+	ctx := context.WithValue(context.Background(), known.XRequestIDKey, "request-1")
+	logger.C(ctx).Infow("context", "confirmPassword", "context-password", "token", "context-visible-token")
+	logger.DB().With(zap.String("login_pwd", "with-password")).Info("with field", zap.String("session_token", "with-visible-token"))
+	logger.DB().Info("native", zap.String("pwd", "native-password"), zap.String("token", "native-visible-token"))
+	logger.DB().Info("marshalers", zap.Object("object", testRedactionObject{}), zap.Array("array", testRedactionArray{}))
+
+	logger.Sync()
+	content, err := os.ReadFile(filepath.Join(dir, "redaction.log"))
+	if err != nil {
+		t.Fatalf("读取日志失败: %v", err)
+	}
+	output := string(content)
+	for _, secret := range []string{"top-secret-password", "nested-password", "array-password", "context-password", "with-password", "native-password", "object-password", "array-marshaler-password", "reflected-array-password"} {
+		if strings.Contains(output, secret) {
+			t.Errorf("日志泄露了密码 %q:\n%s", secret, output)
+		}
+	}
+	for _, visible := range []string{"visible-token", "nested-visible-token", "context-visible-token", "with-visible-token", "native-visible-token"} {
+		if !strings.Contains(output, visible) {
+			t.Errorf("日志应保留 token %q:\n%s", visible, output)
+		}
+	}
+	if strings.Count(output, "[REDACTED]") < 9 {
+		t.Errorf("密码字段应替换为 [REDACTED]:\n%s", output)
+	}
+}
+
+func TestRedactKeysAreCopiedAndApplyToConsoleAndGlobalLogger(t *testing.T) {
+	dir := t.TempDir()
+	chdirForLoggerTest(t, dir)
+	redactKeys := []string{"client_secret"}
+	logger := NewLogger(&Options{Level: "info", Format: "console", OutputPaths: []string{"console.log"}, RedactKeys: redactKeys})
+	redactKeys[0] = "changed"
+	logger.Infow("custom", "clientSecret", "custom-secret", "token", "visible-token")
+	logger.Sync()
+	console, err := os.ReadFile(filepath.Join(dir, "console.log"))
+	if err != nil {
+		t.Fatalf("读取 console 日志失败: %v", err)
+	}
+	if strings.Contains(string(console), "custom-secret") || !strings.Contains(string(console), "[REDACTED]") || !strings.Contains(string(console), "visible-token") {
+		t.Fatalf("console 日志的脱敏结果不正确: %s", console)
+	}
+
+	globalPath := filepath.Join(dir, "global.log")
+	oldStd := std
+	t.Cleanup(func() { std = oldStd })
+	Init(&Options{Level: "info", Format: "json", OutputPaths: []string{"global.log"}})
+	Infow("global", "password", "global-password", "token", "global-visible-token")
+	GetZapLogger().Info("global native", zap.String("pwd", "global-native-password"))
+	Sync()
+	global, err := os.ReadFile(globalPath)
+	if err != nil {
+		t.Fatalf("读取全局日志失败: %v", err)
+	}
+	if strings.Contains(string(global), "global-password") || strings.Contains(string(global), "global-native-password") || !strings.Contains(string(global), "global-visible-token") {
+		t.Fatalf("全局 logger 的脱敏结果不正确: %s", global)
+	}
+}
+
+func TestRedactionMatchesPasswordKeySegmentsAndPreservesUnstructuredText(t *testing.T) {
+	dir := t.TempDir()
+	chdirForLoggerTest(t, dir)
+	logger := NewLogger(&Options{Level: "info", Format: "json", OutputPaths: []string{"segments.log"}})
+	logger.Infow("free-text password=free-text-secret", "PASSWORD", "upper-secret", "db-password-hash", "compound-secret", "pwdHash", "prefix-secret")
+	logger.Sync()
+	content, err := os.ReadFile(filepath.Join(dir, "segments.log"))
+	if err != nil {
+		t.Fatalf("读取日志失败: %v", err)
+	}
+	output := string(content)
+	for _, secret := range []string{"upper-secret", "compound-secret", "prefix-secret"} {
+		if strings.Contains(output, secret) {
+			t.Errorf("日志泄露了密码字段 %q: %s", secret, output)
+		}
+	}
+	if !strings.Contains(output, "free-text-secret") {
+		t.Errorf("自由文本内容应保持原样: %s", output)
+	}
+}
+
+func chdirForLoggerTest(t *testing.T, dir string) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("获取当前目录失败: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("切换到测试目录失败: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(cwd); err != nil {
+			t.Errorf("恢复当前目录失败: %v", err)
+		}
+	})
+}
+
+type testRedactionObject struct{}
+
+func (testRedactionObject) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
+	encoder.AddString("password", "object-password")
+	return nil
+}
+
+type testRedactionArray struct{}
+
+func (testRedactionArray) MarshalLogArray(encoder zapcore.ArrayEncoder) error {
+	if err := encoder.AppendObject(testRedactionArrayObject{}); err != nil {
+		return err
+	}
+	return encoder.AppendReflected(map[string]string{"pwd": "reflected-array-password"})
+}
+
+type testRedactionArrayObject struct{}
+
+func (testRedactionArrayObject) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
+	encoder.AddString("confirmPassword", "array-marshaler-password")
+	return nil
+}
 
 func TestInit(t *testing.T) {
 	var ctx = context.WithValue(context.Background(), known.XRequestIDKey, uuid.New().String())

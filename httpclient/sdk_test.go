@@ -156,6 +156,29 @@ func TestConfiguredLoggerReceivesCall(t *testing.T) {
 	}
 }
 
+func TestLegacyInitWithLogger(t *testing.T) {
+	previous := Client
+	t.Cleanup(func() { Client = previous })
+	logger := &recordingLogger{}
+	InitWithLogger(logger)
+	Client.SetTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Header.Get(known.XRequestIDKey) != "legacy-request" {
+			t.Errorf("request ID was not propagated")
+		}
+		return testResponse(req, http.StatusOK), nil
+	}))
+	ctx := context.WithValue(context.Background(), known.XRequestIDKey, "legacy-request")
+	resp, err := Client.R().SetContext(ctx).Get("http://downstream.test/resource")
+	if err != nil || resp.StatusCode() != http.StatusOK {
+		t.Fatalf("response=%v err=%v", resp, err)
+	}
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
+	if logger.called != 1 {
+		t.Fatalf("legacy logger called %d times", logger.called)
+	}
+}
+
 func TestTransportErrorsRespectIdempotency(t *testing.T) {
 	var attempts atomic.Int32
 	cfg := DefaultConfig("http://downstream.test")
