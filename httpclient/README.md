@@ -40,8 +40,8 @@ resp, err := account.Do(ctx, httpclient.Request{
 
 每个 SDK 实例按**完整调用**统计连续临时故障；默认连续 5 次后断路 30 秒。断路期间返回 `ErrCircuitOpen`，到期只放行一个探测调用，成功后恢复。调用方可用 `errors.Is(err, httpclient.ErrCircuitOpen)` 判断。由于状态属于实例，应按目标服务分别创建实例，长期复用。
 
-请求会透传 context 中的字符串 `X-Request-ID`、`Trace-Id`、`traceparent`、`X-Username`；显式 `Headers` 优先。缺少 request ID 时自动生成并在该调用的所有尝试中保持不变；缺少 trace ID 时使用 request ID。SDK 只透传 trace 上下文，不创建 span。启用日志后，只记录 method、path、status、attempts、耗时和 request ID，不记录 query、body 或鉴权 header。
+请求会透传 context 中的字符串 `X-Request-ID`、`Trace-Id`、`traceparent`、`X-Username`；显式 `Headers` 优先。缺少 request ID 时自动生成并在该调用的所有尝试中保持不变；缺少 trace ID 时使用 request ID。SDK 只透传 trace 上下文，不创建 span。启用日志后，记录 method、path、status、attempts、耗时、request ID、trace ID、完整 query 和 body；JSON 字节体解析为结构化值，流式 body 不会因日志被读取。注入的 logger 应对敏感字段进行脱敏。
 
 `Config.Logger` 接受实现 `Infow(string, ...interface{})` 的现有日志实例；例如调用方自己的 logger 或 `zap.Logger.Sugar()`。未设置时不打印 SDK 请求日志。SDK 只打印一次调用摘要，错误仍返回给调用方，由服务边界决定错误日志级别。
 
-现有 `Init`/`Client` 是兼容入口。`Init()` 不启用请求日志；旧调用若需日志，可使用 `InitWithLogger(myLogger)`。使用 `Client.R()` 的旧调用不会经过本 SDK 的熔断与幂等策略。新调用应使用 `New`/`Do`；旧调用可按服务逐步迁移。
+现有 `Init`/`Client` 是兼容入口。`Init()` 不启用请求日志；旧调用若需日志，可使用 `InitWithLogger(myLogger)`，同样记录 request ID、trace ID、query 和 body。使用 `Client.R()` 的旧调用不会经过本 SDK 的熔断与幂等策略。新调用应使用 `New`/`Do`；旧调用可按服务逐步迁移。

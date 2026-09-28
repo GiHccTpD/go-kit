@@ -6,6 +6,7 @@ import (
 
 	"github.com/GiHccTpD/go-kit/known"
 	"github.com/go-resty/resty/v2"
+	"github.com/google/uuid"
 )
 
 var Client *resty.Client
@@ -25,11 +26,30 @@ func InitWithLogger(logger Logger) {
 
 	Client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
 		ctx := req.Context()
-		if v := contextString(ctx, known.XRequestIDKey); v != "" {
-			req.SetHeader(known.XRequestIDKey, v)
+		requestID := req.Header.Get(known.XRequestIDKey)
+		if requestID == "" {
+			requestID = contextString(ctx, known.XRequestIDKey)
 		}
-		if v := contextString(ctx, known.XUsernameKey); v != "" {
-			req.SetHeader(known.XUsernameKey, v)
+		if requestID == "" {
+			requestID = uuid.NewString()
+		}
+		req.SetHeader(known.XRequestIDKey, requestID)
+		if req.Header.Get(traceIDHeader) == "" {
+			traceID := contextString(ctx, traceIDHeader)
+			if traceID == "" {
+				traceID = requestID
+			}
+			req.SetHeader(traceIDHeader, traceID)
+		}
+		if req.Header.Get(traceparentHeader) == "" {
+			if v := contextString(ctx, traceparentHeader); v != "" {
+				req.SetHeader(traceparentHeader, v)
+			}
+		}
+		if req.Header.Get(known.XUsernameKey) == "" {
+			if v := contextString(ctx, known.XUsernameKey); v != "" {
+				req.SetHeader(known.XUsernameKey, v)
+			}
 		}
 		return nil
 	})
@@ -41,7 +61,10 @@ func InitWithLogger(logger Logger) {
 				path = parsed.Path
 			}
 			logger.Infow("🌐 HTTP request done", "method", resp.Request.Method,
-				"path", path, "status", resp.StatusCode(), "durationMs", resp.Time().Milliseconds())
+				"path", path, "status", resp.StatusCode(), "durationMs", resp.Time().Milliseconds(),
+				"requestId", resp.Request.Header.Get(known.XRequestIDKey),
+				"traceId", resp.Request.Header.Get(traceIDHeader),
+				"query", requestLogQuery(resp.Request), "body", requestLogBody(resp.Request))
 			return nil
 		})
 	}

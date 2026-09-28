@@ -2,9 +2,11 @@ package httpclient
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -122,37 +124,63 @@ func (l *recordingLogger) Infow(_ string, fields ...interface{}) {
 	l.fields = append([]interface{}(nil), fields...)
 }
 
+func (l *recordingLogger) fieldsByName(t *testing.T) map[string]interface{} {
+	t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(l.fields)%2 != 0 {
+		t.Fatalf("unexpected log fields: %v", l.fields)
+	}
+	fields := make(map[string]interface{}, len(l.fields)/2)
+	for i := 0; i < len(l.fields); i += 2 {
+		key, ok := l.fields[i].(string)
+		if !ok {
+			t.Fatalf("unexpected log key: %v", l.fields[i])
+		}
+		fields[key] = l.fields[i+1]
+	}
+	return fields
+}
+
 func TestConfiguredLoggerReceivesCall(t *testing.T) {
 	logger := &recordingLogger{}
 	cfg := DefaultConfig("http://downstream.test")
 	cfg.Logger = logger
 	cfg.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		body, err := io.ReadAll(req.Body)
+		if err != nil || string(body) != `{"message":"hello"}` {
+			t.Errorf("request body=%q err=%v", body, err)
+		}
 		return testResponse(req, http.StatusOK), nil
 	})
 	sdk, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = sdk.Do(context.Background(), Request{Method: http.MethodGet, Path: "/resource"})
+	ctx := context.WithValue(context.Background(), known.XRequestIDKey, "request-1")
+	ctx = context.WithValue(ctx, traceIDHeader, "trace-1")
+	_, err = sdk.Do(ctx, Request{Method: http.MethodPost, Path: "/resource?inline=yes",
+		Query: url.Values{"extra": {"two"}}, Body: json.RawMessage(`{"message":"hello"}`)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	logger.mu.Lock()
-	defer logger.mu.Unlock()
-	if logger.called != 1 {
-		t.Fatalf("logger called %d times", logger.called)
+	called := logger.called
+	logger.mu.Unlock()
+	if called != 1 {
+		t.Fatalf("logger called %d times", called)
 	}
-	if len(logger.fields)%2 != 0 {
-		t.Fatalf("unexpected log fields: %v", logger.fields)
+	fields := logger.fieldsByName(t)
+	query, ok := fields["query"].(url.Values)
+	if !ok || query.Get("inline") != "yes" || query.Get("extra") != "two" {
+		t.Fatalf("query=%v", fields["query"])
 	}
-	var hasRequestID bool
-	for i := 0; i < len(logger.fields); i += 2 {
-		if logger.fields[i] == "requestId" && logger.fields[i+1] != "" {
-			hasRequestID = true
-		}
+	body, ok := fields["body"].(map[string]interface{})
+	if !ok || body["message"] != "hello" {
+		t.Fatalf("body=%v", fields["body"])
 	}
-	if !hasRequestID {
-		t.Fatalf("request ID missing from log fields: %v", logger.fields)
+	if fields["requestId"] != "request-1" || fields["traceId"] != "trace-1" {
+		t.Fatalf("request/trace ID fields=%v", fields)
 	}
 }
 
@@ -165,17 +193,61 @@ func TestLegacyInitWithLogger(t *testing.T) {
 		if req.Header.Get(known.XRequestIDKey) != "legacy-request" {
 			t.Errorf("request ID was not propagated")
 		}
+		if req.Header.Get(traceIDHeader) != "legacy-trace" {
+			t.Errorf("trace ID was not propagated")
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil || string(body) != `{"message":"hello"}` {
+			t.Errorf("request body=%q err=%v", body, err)
+		}
 		return testResponse(req, http.StatusOK), nil
 	}))
 	ctx := context.WithValue(context.Background(), known.XRequestIDKey, "legacy-request")
-	resp, err := Client.R().SetContext(ctx).Get("http://downstream.test/resource")
+	ctx = context.WithValue(ctx, traceIDHeader, "legacy-trace")
+	resp, err := Client.R().SetContext(ctx).SetQueryParam("extra", "two").
+		SetBody([]byte(`{"message":"hello"}`)).Post("http://downstream.test/resource?inline=yes")
 	if err != nil || resp.StatusCode() != http.StatusOK {
 		t.Fatalf("response=%v err=%v", resp, err)
 	}
 	logger.mu.Lock()
-	defer logger.mu.Unlock()
-	if logger.called != 1 {
-		t.Fatalf("legacy logger called %d times", logger.called)
+	called := logger.called
+	logger.mu.Unlock()
+	if called != 1 {
+		t.Fatalf("legacy logger called %d times", called)
+	}
+	fields := logger.fieldsByName(t)
+	query, ok := fields["query"].(url.Values)
+	if !ok || query.Get("inline") != "yes" || query.Get("extra") != "two" {
+		t.Fatalf("legacy query=%v", fields["query"])
+	}
+	body, ok := fields["body"].(map[string]interface{})
+	if !ok || body["message"] != "hello" {
+		t.Fatalf("legacy body=%v", fields["body"])
+	}
+	if fields["requestId"] != "legacy-request" || fields["traceId"] != "legacy-trace" {
+		t.Fatalf("legacy request/trace ID fields=%v", fields)
+	}
+}
+
+func TestLegacyInitGeneratesTraceID(t *testing.T) {
+	previous := Client
+	t.Cleanup(func() { Client = previous })
+	logger := &recordingLogger{}
+	InitWithLogger(logger)
+	var sentRequestID string
+	Client.SetTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		sentRequestID = req.Header.Get(known.XRequestIDKey)
+		if sentRequestID == "" || req.Header.Get(traceIDHeader) != sentRequestID {
+			t.Errorf("generated IDs were not sent: %v", req.Header)
+		}
+		return testResponse(req, http.StatusOK), nil
+	}))
+	if _, err := Client.R().Get("http://downstream.test/resource"); err != nil {
+		t.Fatal(err)
+	}
+	fields := logger.fieldsByName(t)
+	if fields["requestId"] != sentRequestID || fields["traceId"] != sentRequestID {
+		t.Fatalf("generated IDs were not logged: %v", fields)
 	}
 }
 

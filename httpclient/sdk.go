@@ -145,13 +145,14 @@ func (s *SDK) Do(ctx context.Context, call Request) (*resty.Response, error) {
 		requestID = uuid.NewString()
 	}
 	headers.Set(known.XRequestIDKey, requestID)
-	if headers.Get(traceIDHeader) == "" {
-		traceID := contextString(ctx, traceIDHeader)
-		if traceID == "" {
-			traceID = requestID
-		}
-		headers.Set(traceIDHeader, traceID)
+	traceID := headers.Get(traceIDHeader)
+	if traceID == "" {
+		traceID = contextString(ctx, traceIDHeader)
 	}
+	if traceID == "" {
+		traceID = requestID
+	}
+	headers.Set(traceIDHeader, traceID)
 	if headers.Get(traceparentHeader) == "" {
 		if v := contextString(ctx, traceparentHeader); v != "" {
 			headers.Set(traceparentHeader, v)
@@ -200,7 +201,8 @@ func (s *SDK) Do(ctx context.Context, call Request) (*resty.Response, error) {
 	if s.config.Logger != nil {
 		s.config.Logger.Infow("🌐 HTTP request done", "method", method, "path", path.Path,
 			"status", status, "attempts", req.Attempt, "durationMs", time.Since(started).Milliseconds(),
-			"requestId", requestID)
+			"requestId", requestID, "traceId", traceID,
+			"query", requestLogQuery(req), "body", requestLogBody(req))
 	}
 	if err != nil {
 		return resp, fmt.Errorf("execute %s %s: %w", method, path.Path, err)
