@@ -199,10 +199,11 @@ func (s *SDK) Do(ctx context.Context, call Request) (*resty.Response, error) {
 		status = resp.StatusCode()
 	}
 	if s.config.Logger != nil {
-		s.config.Logger.Infow("🌐 HTTP request done", "method", method, "path", path.Path,
-			"status", status, "attempts", req.Attempt, "durationMs", time.Since(started).Milliseconds(),
+		s.config.Logger.Infow("🌐 HTTP request done", "method", method, "url", req.URL,
+			"query", requestLogQuery(req), "status", status,
+			"costMs", time.Since(started).Milliseconds(), "attempts", req.Attempt,
 			"requestId", requestID, "traceId", traceID,
-			"query", requestLogQuery(req), "body", requestLogBody(req))
+			"reqBody", requestLogBody(req))
 	}
 	if err != nil {
 		return resp, fmt.Errorf("execute %s %s: %w", method, path.Path, err)

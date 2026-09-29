@@ -1,7 +1,6 @@
 package httpclient
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/GiHccTpD/go-kit/known"
@@ -56,15 +55,12 @@ func InitWithLogger(logger Logger) {
 
 	if logger != nil {
 		Client.OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
-			path := resp.Request.URL
-			if parsed, err := url.Parse(path); err == nil {
-				path = parsed.Path
-			}
 			logger.Infow("🌐 HTTP request done", "method", resp.Request.Method,
-				"path", path, "status", resp.StatusCode(), "durationMs", resp.Time().Milliseconds(),
+				"url", resp.Request.URL, "query", requestLogQuery(resp.Request),
+				"status", resp.StatusCode(), "costMs", resp.Time().Milliseconds(),
 				"requestId", resp.Request.Header.Get(known.XRequestIDKey),
 				"traceId", resp.Request.Header.Get(traceIDHeader),
-				"query", requestLogQuery(resp.Request), "body", requestLogBody(resp.Request))
+				"reqBody", requestLogBody(resp.Request))
 			return nil
 		})
 	}

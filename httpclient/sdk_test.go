@@ -175,12 +175,19 @@ func TestConfiguredLoggerReceivesCall(t *testing.T) {
 	if !ok || query.Get("inline") != "yes" || query.Get("extra") != "two" {
 		t.Fatalf("query=%v", fields["query"])
 	}
-	body, ok := fields["body"].(map[string]interface{})
+	body, ok := fields["reqBody"].(map[string]interface{})
 	if !ok || body["message"] != "hello" {
-		t.Fatalf("body=%v", fields["body"])
+		t.Fatalf("reqBody=%v", fields["reqBody"])
 	}
 	if fields["requestId"] != "request-1" || fields["traceId"] != "trace-1" {
 		t.Fatalf("request/trace ID fields=%v", fields)
+	}
+	loggedURL, ok := fields["url"].(string)
+	if !ok || !strings.Contains(loggedURL, "/resource") {
+		t.Fatalf("url=%v", fields["url"])
+	}
+	if _, ok := fields["costMs"].(int64); !ok {
+		t.Fatalf("costMs=%v", fields["costMs"])
 	}
 }
 
@@ -220,12 +227,19 @@ func TestLegacyInitWithLogger(t *testing.T) {
 	if !ok || query.Get("inline") != "yes" || query.Get("extra") != "two" {
 		t.Fatalf("legacy query=%v", fields["query"])
 	}
-	body, ok := fields["body"].(map[string]interface{})
+	body, ok := fields["reqBody"].(map[string]interface{})
 	if !ok || body["message"] != "hello" {
-		t.Fatalf("legacy body=%v", fields["body"])
+		t.Fatalf("legacy reqBody=%v", fields["reqBody"])
 	}
 	if fields["requestId"] != "legacy-request" || fields["traceId"] != "legacy-trace" {
 		t.Fatalf("legacy request/trace ID fields=%v", fields)
+	}
+	loggedURL, ok := fields["url"].(string)
+	if !ok || !strings.Contains(loggedURL, "/resource") {
+		t.Fatalf("legacy url=%v", fields["url"])
+	}
+	if _, ok := fields["costMs"].(int64); !ok {
+		t.Fatalf("legacy costMs=%v", fields["costMs"])
 	}
 }
 
