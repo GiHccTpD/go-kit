@@ -15,10 +15,11 @@ const redactedValue = "🔒 [REDACTED]"
 
 type redactingCore struct {
 	zapcore.Core
-	keys map[string]struct{}
+	keys            map[string]struct{}
+	errorOnlyCaller bool
 }
 
-func newRedactingCore(core zapcore.Core, keys []string) zapcore.Core {
+func newRedactingCore(core zapcore.Core, keys []string, errorOnlyCaller bool) zapcore.Core {
 	redactKeys := make(map[string]struct{}, len(keys))
 	for _, key := range keys {
 		key = normalizeKey(key)
@@ -26,11 +27,13 @@ func newRedactingCore(core zapcore.Core, keys []string) zapcore.Core {
 			redactKeys[key] = struct{}{}
 		}
 	}
-	return &redactingCore{Core: core, keys: redactKeys}
+	return &redactingCore{Core: core, keys: redactKeys, errorOnlyCaller: errorOnlyCaller}
 }
 
 func (c *redactingCore) With(fields []zapcore.Field) zapcore.Core {
-	return &redactingCore{Core: c.Core.With(redactFields(fields, c.keys)), keys: c.keys}
+	clone := *c
+	clone.Core = c.Core.With(redactFields(fields, c.keys))
+	return &clone
 }
 
 func (c *redactingCore) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry) *zapcore.CheckedEntry {
@@ -41,6 +44,9 @@ func (c *redactingCore) Check(entry zapcore.Entry, checked *zapcore.CheckedEntry
 }
 
 func (c *redactingCore) Write(entry zapcore.Entry, fields []zapcore.Field) error {
+	if c.errorOnlyCaller && entry.Level < zapcore.ErrorLevel {
+		entry.Caller = zapcore.EntryCaller{}
+	}
 	return c.Core.Write(entry, redactFields(fields, c.keys))
 }
 

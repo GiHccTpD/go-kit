@@ -4,7 +4,8 @@ import "go.uber.org/zap/zapcore"
 
 type Options struct {
 	DisableCaller     bool     // 是否禁用 caller，如果不禁用会在日志中显示调用日志所在的文件和行号
-	DisableStacktrace bool     // 是否禁止在 panic 及以上级别打印堆栈信息
+	DisableStacktrace bool     // 是否禁止在 error 及以上级别打印堆栈信息
+	ErrorOnlyCaller   bool     // 仅在 error 及以上级别输出 caller，DisableCaller 优先
 	Level             string   // 指定日志级别，可选值：debug, info, warn, error, dpanic, panic, fatal
 	Format            string   // 指定日志显示格式，可选值：console, json
 	OutputPaths       []string // 指定日志输出位置
