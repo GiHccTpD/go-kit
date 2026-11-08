@@ -201,29 +201,34 @@ func (l *zapLogger) C(ctx context.Context) *zapLogger {
 }
 
 // ========== Global Logging API (no context) ==========
+//
+// 包级函数直接使用 std.z 打日志，不要委托给 std.Debugw 等方法：委托会多一层
+// 栈帧，使 caller 落到本文件而不是业务调用点，调用方可能因此自行叠加
+// zap.AddCallerSkip 补偿，进而在 goroutine 等浅栈入口触发
+// "Logger.check error: failed to get caller"。
 
 func Debugw(msg string, keysAndValues ...interface{}) {
-	std.Debugw(msg, keysAndValues...)
+	std.z.Sugar().Debugw(msg, keysAndValues...)
 }
 
 func Infow(msg string, keysAndValues ...interface{}) {
-	std.Infow(msg, keysAndValues...)
+	std.z.Sugar().Infow(msg, keysAndValues...)
 }
 
 func Warnw(msg string, keysAndValues ...interface{}) {
-	std.Warnw(msg, keysAndValues...)
+	std.z.Sugar().Warnw(msg, keysAndValues...)
 }
 
 func Errorw(msg string, keysAndValues ...interface{}) {
-	std.Errorw(msg, keysAndValues...)
+	std.z.Sugar().Errorw(msg, keysAndValues...)
 }
 
 func Panicw(msg string, keysAndValues ...interface{}) {
-	std.Panicw(msg, keysAndValues...)
+	std.z.Sugar().Panicw(msg, keysAndValues...)
 }
 
 func Fatalw(msg string, keysAndValues ...interface{}) {
-	std.Fatalw(msg, keysAndValues...)
+	std.z.Sugar().Fatalw(msg, keysAndValues...)
 }
 
 /* -------------------- Clone -------------------- */
