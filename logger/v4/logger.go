@@ -24,11 +24,15 @@ type Logger interface {
 	Panicw(msg string, keysAndValues ...interface{})
 	Fatalw(msg string, keysAndValues ...interface{})
 	C(ctx context.Context) *zapLogger
+	With(fields ...zap.Field) *zapLogger
 	SetLevel(level string)
 	GetLevel() string
 	DB() *zap.Logger
 	Sync()
 }
+
+// 确保 zapLogger 实现了 Logger 接口，编译期即可发现遗漏。
+var _ Logger = (*zapLogger)(nil)
 
 /* -------------------- Global -------------------- */
 
@@ -37,25 +41,14 @@ var (
 	std = NewLogger(NewOptions())
 )
 
-///* -------------------- Options -------------------- */
-//
-//type Options struct {
-//	Level       string   // info/debug/warn/error
-//	OutputPaths []string // stdout, xxx.log
-//}
-//
-//func NewOptions() *Options {
-//	return &Options{
-//		Level:       "info",
-//		OutputPaths: []string{"stdout"},
-//	}
-//}
-
 /* -------------------- zapLogger -------------------- */
 
 type zapLogger struct {
-	z     *zap.Logger
-	level zap.AtomicLevel
+	// z 供本包的封装方法使用，已补偿封装层带来的调用栈偏移。
+	z *zap.Logger
+	// native 供 DB()/GetZapLogger() 直接调用 zap 时使用，保持原始调用栈。
+	native *zap.Logger
+	level  zap.AtomicLevel
 }
 
 /* -------------------- Init -------------------- */
@@ -67,7 +60,7 @@ func Init(opts *Options) {
 	std = NewLogger(opts)
 }
 
-func GetZapLogger() *zap.Logger { return std.z }
+func GetZapLogger() *zap.Logger { return std.DB() }
 
 /* -------------------- NewLogger -------------------- */
 
@@ -86,21 +79,26 @@ func NewLogger(opts *Options) *zapLogger {
 	encoder := newEncoder(opts.Format)
 	writer := getWriteSyncer(opts.OutputPaths)
 
-	core := newRedactingCore(zapcore.NewCore(encoder, writer, level), opts.RedactKeys, opts.ErrorOnlyCaller)
+	// 默认仅在 error 及以上级别输出 caller；CallerOnAllLevels 可放开该限制。
+	core := newRedactingCore(zapcore.NewCore(encoder, writer, level), opts.RedactKeys, !opts.CallerOnAllLevels)
 
 	zapOptions := make([]zap.Option, 0, 3)
+	// 封装方法会多一层栈帧，即使不输出 caller 也要补偿，否则 error 堆栈会包含本包内部帧。
+	zapOptions = append(zapOptions, zap.AddCallerSkip(1))
 	if !opts.DisableCaller {
-		zapOptions = append(zapOptions, zap.AddCaller(), zap.AddCallerSkip(1))
+		zapOptions = append(zapOptions, zap.AddCaller())
 	}
 	if !opts.DisableStacktrace {
 		zapOptions = append(zapOptions, zap.AddStacktrace(zap.ErrorLevel))
 	}
 
 	z := zap.New(core, zapOptions...)
+	// 直接使用 zap 时不需要补偿封装层栈帧，因此单独保留一个无偏移的实例。
+	native := z.WithOptions(zap.AddCallerSkip(-1))
 
-	zap.RedirectStdLog(z)
+	zap.RedirectStdLog(native)
 
-	return &zapLogger{z: z, level: level}
+	return &zapLogger{z: z, native: native, level: level}
 }
 
 /* -------------------- WriteSyncer -------------------- */
@@ -154,6 +152,30 @@ func (l *zapLogger) Fatalw(msg string, keysAndValues ...interface{}) {
 	l.z.Sugar().Fatalw(msg, keysAndValues...)
 }
 
+/* -------------------- Fields -------------------- */
+
+func With(fields ...zap.Field) *zapLogger {
+	return std.With(fields...)
+}
+
+func (l *zapLogger) With(fields ...zap.Field) *zapLogger {
+	return l.with(fields...)
+}
+
+// with 同时派生封装与原生两个 logger，保证附加字段在 DB() 返回的实例上同样生效。
+func (l *zapLogger) with(fields ...zap.Field) *zapLogger {
+	lc := l.clone()
+
+	if len(fields) == 0 {
+		return lc
+	}
+
+	lc.z = lc.z.With(fields...)
+	lc.native = lc.native.With(fields...)
+
+	return lc
+}
+
 /* -------------------- Context Fields 注入 -------------------- */
 
 func C(ctx context.Context) *zapLogger {
@@ -161,21 +183,21 @@ func C(ctx context.Context) *zapLogger {
 }
 
 func (l *zapLogger) C(ctx context.Context) *zapLogger {
-	lc := l.clone()
-
 	if ctx == nil {
-		return lc
+		return l.clone()
 	}
+
+	fields := make([]zap.Field, 0, 2)
 
 	if requestID := ctx.Value(known.XRequestIDKey); requestID != nil {
-		lc.z = lc.z.With(zap.Any(known.XRequestIDKey, requestID))
+		fields = append(fields, zap.Any(known.XRequestIDKey, requestID))
 	}
 
-	if userID := ctx.Value(known.XUsernameKey); userID != nil {
-		lc.z = lc.z.With(zap.Any(known.XUsernameKey, userID))
+	if username := ctx.Value(known.XUsernameKey); username != nil {
+		fields = append(fields, zap.Any(known.XUsernameKey, username))
 	}
 
-	return lc
+	return l.with(fields...)
 }
 
 // ========== Global Logging API (no context) ==========
@@ -227,7 +249,7 @@ func (l *zapLogger) GetLevel() string {
 
 /* -------------------- Others -------------------- */
 
-func (l *zapLogger) DB() *zap.Logger { return l.z }
+func (l *zapLogger) DB() *zap.Logger { return l.native }
 
 func Sync() { std.Sync() }
 func (l *zapLogger) Sync() {
